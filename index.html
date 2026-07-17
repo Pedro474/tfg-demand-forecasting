@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Predicción de Órdenes de Trabajo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f4f8;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .container {
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            width: 80%;
+            max-width: 800px;
+            margin-top: 20px;
+        }
+
+        h1 {
+            color: #4CAF50;
+            text-align: center;
+            font-size: 24px;
+            margin-top: 20px;
+        }
+
+        .form-section {
+            margin-bottom: 20px;
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .form-inline {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .form-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .form-column {
+            flex: 1;
+        }
+
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+            button:hover {
+                background-color: #45a049;
+            }
+
+        .result {
+            margin-top: 20px;
+            background-color: #e7f3e7;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 18px;
+            color: #4CAF50;
+        }
+
+        #historico {
+            margin-top: 20px;
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        #lista-historico li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Predicción de Órdenes de Trabajo</h1>
+    <div class="container">
+        <form action="/" method="post">
+            <div class="form-section form-inline">
+                <div>
+                    <label for="fecha">Selecciona la Fecha a Predecir:</label>
+                    <input type="date" name="fecha" id="fecha" value="{{ form_data.get('fecha', '') }}" required>
+                </div>
+                <div>
+                    <label for="semana">Número de la Semana:</label>
+                    <input type="text" id="semana" name="semana" value="{{ numero_semana if numero_semana else '' }}" readonly>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-section form-column">
+                    <h2>Datos de Precipitación</h2>
+                    <label for="prcp_actual">Precipitación Estimada Hoy (mm):</label>
+                    <input type="number" step="0.1" name="prcp_actual" value="{{ form_data.get('prcp_actual', '') }}" required>
+                    <label for="prcp_anterior">Precipitación Ayer (mm):</label>
+                    <input type="number" step="0.1" name="prcp_anterior" value="{{ form_data.get('prcp_anterior', '') }}" required>
+                    <label for="prcp_dia_2">Precipitación Hace 2 Días (mm):</label>
+                    <input type="number" step="0.1" name="prcp_dia_2" value="{{ form_data.get('prcp_dia_2', '') }}" required>
+                    <label for="prcp_dia_3">Precipitación Hace 3 Días (mm):</label>
+                    <input type="number" step="0.1" name="prcp_dia_3" value="{{ form_data.get('prcp_dia_3', '') }}" required>
+                    <label for="prcp_dia_4">Precipitación Hace 4 Días (mm):</label>
+                    <input type="number" step="0.1" name="prcp_dia_4" value="{{ form_data.get('prcp_dia_4', '') }}" required>
+                    <label for="prcp_dia_5">Precipitación Hace 5 Días (mm):</label>
+                    <input type="number" step="0.1" name="prcp_dia_5" value="{{ form_data.get('prcp_dia_5', '') }}" required>
+                </div>
+
+                <div class="form-section form-column">
+                    <h2>Órdenes de Trabajo Anteriores</h2>
+                    <label for="orders_lag1">Órdenes Atendidas Día Anterior:</label>
+                    <input type="number" step="1" name="orders_lag1" value="{{ form_data.get('orders_lag1', '') }}" required>
+                    <label for="orders_lag2">Órdenes Atendidas Hace Dos Días:</label>
+                    <input type="number" step="1" name="orders_lag2" value="{{ form_data.get('orders_lag2', '') }}" required>
+                </div>
+            </div>
+
+            <button type="submit">Predecir</button>
+
+
+        </form>
+
+        {% if prediction %}
+        <div class="result">
+            <h2>Órdenes de trabajo presenciales estimadas: {{ prediction | int }}</h2>
+        </div>
+        {% endif %}
+
+        <button onclick="mostrarHistorico()">Ver Histórico de Órdenes</button>
+
+        <div id="historico">
+            <h2>Histórico de Órdenes</h2>
+            <ul id="lista-historico"></ul>
+        </div>
+    </div>
+
+    <script>
+        
+       
+
+
+        // Función para mostrar el histórico
+        async function mostrarHistorico() {
+            const response = await fetch('/historico');
+            const historico = await response.json();
+            const lista = document.getElementById("lista-historico");
+            const contenedorHistorico = document.getElementById("historico");
+
+            lista.innerHTML = "";
+
+            if (historico.length === 0) {
+                lista.innerHTML = "<li>No hay datos en el histórico.</li>";
+            } else {
+                historico.forEach((entrada, index) => {
+                    const item = document.createElement("li");
+                    item.textContent = `${index + 1}. Fecha: ${entrada.fecha}, Órdenes: ${entrada.prediction}`;
+                    lista.appendChild(item);
+                });
+            }
+
+            contenedorHistorico.style.display = "block";
+        }
+
+    </script>
+</body>
+</html>
+
+
+
